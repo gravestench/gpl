@@ -1,0 +1,5 @@
+.idea
+.idea/*
+*.png
+*.gpl
+.DS_Store
