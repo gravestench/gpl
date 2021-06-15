@@ -39,7 +39,7 @@ Name: Bears
 140 104  88
 */
 
-func (p GPL) Decode(r io.Reader) error {
+func Decode(r io.Reader) (*GPL, error) {
 	lineScan := bufio.NewScanner(r)
 
 	lines := make([]string, 0)
@@ -48,10 +48,11 @@ func (p GPL) Decode(r io.Reader) error {
 	}
 
 	if len(lines) <= numHeaderLines {
-		return errors.New("GPL file too short")
+		return nil, errors.New("GPL file too short")
 	}
 
 	colorLines := lines[numHeaderLines:]
+	gpl := make(GPL, len(colorLines))
 
 	for colorIdx := range colorLines {
 		wordScan := bufio.NewScanner(bytes.NewBufferString(colorLines[colorIdx]))
@@ -66,22 +67,22 @@ func (p GPL) Decode(r io.Reader) error {
 			continue
 		}
 
-		r, err := strconv.ParseInt(words[0], 10, 8)
+		r, err := strconv.ParseInt(words[0], 10, 32)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		g, err := strconv.ParseInt(words[1], 10, 8)
+		g, err := strconv.ParseInt(words[1], 10, 32)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		b, err := strconv.ParseInt(words[2], 10, 8)
+		b, err := strconv.ParseInt(words[2], 10, 32)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		p[colorIdx] = color.RGBA{
+		gpl[colorIdx] = color.RGBA{
 			R: uint8(r),
 			G: uint8(g),
 			B: uint8(b),
@@ -89,7 +90,7 @@ func (p GPL) Decode(r io.Reader) error {
 		}
 	}
 
-	return nil
+	return &gpl, nil
 }
 
 func (p GPL) Encode(name string, w io.Writer) error {
@@ -122,17 +123,6 @@ func (p GPL) Encode(name string, w io.Writer) error {
 	}
 
 	return nil
-}
-
-func New() *GPL {
-	return &GPL{}
-}
-
-func Decode(r io.Reader) (*GPL, error) {
-	gpl := New()
-	err := gpl.Decode(r)
-
-	return gpl, err
 }
 
 func FromPalette(p color.Palette) GPL {
