@@ -3,12 +3,12 @@ package pkg
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"image/color"
 	"io"
 	"math"
 	"strconv"
+	"strings"
 )
 
 type GimpPalette color.Palette
@@ -16,18 +16,18 @@ type GimpPalette color.Palette
 type GPL = GimpPalette
 
 const (
-	numHeaderLines = 3
-	line1          = "GIMP Palette\r\n"
-	line2          = "Name: %s\r\n"
-	line3          = "#\r\n"
-	fmtComponent   = "  %v"
-	fmtLine        = "%s %s %s\r\n"
-	fmtErr         = "error encoding DAT to p format, %v"
+	commentCharacter = "#"
+	line1            = "GIMP Palette\r\n"
+	line2            = "# Name: %s\r\n"
+	line3            = "#\r\n"
+	fmtComponent     = "  %v"
+	fmtLine          = "%s %s %s\r\n"
+	fmtErr           = "error encoding DAT to p format, %v"
 )
 
 /*
 GIMP Palette
-Name: Bears
+# Name: Bears
 #
 8   8   8	grey3
 68  44  44
@@ -39,7 +39,7 @@ Name: Bears
 140 104  88
 */
 
-func Decode(r io.Reader) (*GPL, error) {
+func Decode(r io.Reader) (GPL, error) {
 	lineScan := bufio.NewScanner(r)
 
 	lines := make([]string, 0)
@@ -47,20 +47,27 @@ func Decode(r io.Reader) (*GPL, error) {
 		lines = append(lines, lineScan.Text())
 	}
 
-	if len(lines) <= numHeaderLines {
-		return nil, errors.New("GPL file too short")
-	}
+	gpl := make(GPL, 0)
 
-	colorLines := lines[numHeaderLines:]
-	gpl := make(GPL, len(colorLines))
-
-	for colorIdx := range colorLines {
-		wordScan := bufio.NewScanner(bytes.NewBufferString(colorLines[colorIdx]))
+	for lineIdx := range lines {
+		wordScan := bufio.NewScanner(bytes.NewBufferString(lines[lineIdx]))
 		wordScan.Split(bufio.ScanWords)
 
 		words := make([]string, 0)
 		for wordScan.Scan() {
 			words = append(words, wordScan.Text())
+		}
+
+		if len(words) < 1 {
+			continue
+		}
+
+		if strings.Contains(words[0], commentCharacter) {
+			continue
+		}
+
+		if _, err := strconv.ParseInt(words[0], 10, 32); err != nil {
+			continue
 		}
 
 		if len(words) < 3 {
@@ -82,18 +89,22 @@ func Decode(r io.Reader) (*GPL, error) {
 			return nil, err
 		}
 
-		gpl[colorIdx] = color.RGBA{
+		c := color.RGBA{
 			R: uint8(r),
 			G: uint8(g),
 			B: uint8(b),
 			A: math.MaxUint8,
 		}
+
+		gpl = append(gpl, c)
 	}
 
-	return &gpl, nil
+	return gpl, nil
 }
 
 func (p GPL) Encode(name string, w io.Writer) error {
+	const numHeaderLines = 3
+
 	numColors := len(p)
 	numLines := numColors + numHeaderLines
 	lines := make([]string, numLines)
