@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/gravestench/gpl/pkg"
 	"image/color"
 	"io/ioutil"
 	"os"
+
+	"github.com/gravestench/gpl/pkg"
 )
 
 type options struct {
